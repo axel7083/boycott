@@ -4,3 +4,4 @@ sqlmodel
 passlib
 bcrypt
 pyjwt
+minio

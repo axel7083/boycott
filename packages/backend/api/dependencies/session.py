@@ -3,7 +3,7 @@ from typing import Annotated
 
 from sqlmodel import Session
 from fastapi import Depends
-from packages.backend.core.db import engine
+from core.db import engine
 
 
 def get_db() -> Generator[Session, None, None]:

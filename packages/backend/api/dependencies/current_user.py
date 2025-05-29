@@ -6,10 +6,11 @@ from jwt import InvalidTokenError
 from pydantic import ValidationError
 from starlette import status
 
-from packages.backend.api.dependencies.session import SessionDep
-from packages.backend.core import security
-from packages.backend.core.settings import settings
-from packages.backend.models import User, TokenPayload
+from api.dependencies.session import SessionDep
+from core import security
+from core.settings import settings
+from models.user import User
+from models.token import TokenPayload
 
 async def get_current_user(session: SessionDep, authorization: Annotated[str | None, Header()] = None) -> User:
     # Extract Bearer token

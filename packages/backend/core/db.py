@@ -1,5 +1,6 @@
 from sqlmodel import create_engine, SQLModel
-import packages.backend.models # required
+from models.user import User # required
+from models.images import Images # required
 
 engine = create_engine("postgresql+psycopg://testUser:testPassword@localhost:5432/testDB")
 

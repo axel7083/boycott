@@ -3,12 +3,13 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, SecretStr
 
-from packages.backend.api.dependencies.current_user import CurrentUserDep
-from packages.backend.api.dependencies.session import SessionDep
-from packages.backend.core import security
-from packages.backend.core.security import get_password_hash, verify_password
-from packages.backend.core.settings import settings
-from packages.backend.models import User, Token
+from api.dependencies.current_user import CurrentUserDep
+from api.dependencies.session import SessionDep
+from core import security
+from core.security import get_password_hash, verify_password
+from core.settings import settings
+from models.user import User
+from models.token import Token
 from sqlmodel import select
 
 router = APIRouter(prefix="/users", tags=["users"])

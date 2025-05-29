@@ -3,7 +3,7 @@ from typing import Any
 from datetime import datetime, timedelta, timezone
 import jwt
 
-from packages.backend.core.settings import settings
+from core.settings import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
