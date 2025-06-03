@@ -23,7 +23,9 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgresdb
+  name: postgresdb-deployment
+  labels:
+    app: postgresdb-deployment
 spec:
   replicas: 1
   selector:
@@ -52,19 +54,6 @@ spec:
             claimName: postgresdb-pvc
 ---
 apiVersion: v1
-kind: Service
-metadata:
-  name: postgresdb
-  labels:
-    app: postgresdb
-spec:
-  type: NodePort
-  ports:
-    - port: 5432
-  selector:
-    app: postgresdb
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: minio-pvc
@@ -89,7 +78,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: minio-deployment
-  namespace: mlops
   labels:
     app: minio-deployment
 spec:
@@ -103,7 +91,7 @@ spec:
         app: minio
     spec:
       containers:
-        - name: minio-server
+        - name: minio
           image: quay.io/minio/minio:latest
           ports:
           - containerPort: 9000
@@ -141,23 +129,35 @@ spec:
           persistentVolumeClaim:
             claimName: minio-pvc
 ---
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: minio-service
-  namespace: mlops
-  labels:
-    app: minio-service
+  name: backend
 spec:
-  type: ClusterIP
+  replicas: 1
   selector:
-    app: minio
-  ports:
-  - name: api
-    protocol: TCP
-    port: 9000
-    targetPort: 9000
-  - name: webui
-    protocol: TCP
-    port: 9001
-    targetPort: 9001
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/axel7083/boycott/backend:next
+          ports:
+            - containerPort: 80
+              hostPort: 8888
+          envFrom:
+            # postgres DB & USER & PASSWORD
+            - configMapRef:
+                name: db-secret-credentials
+            # minio USER & PASSWORD
+            - configMapRef:
+                name: minio-secret-credentials
+          env:
+            - name: POSTGRES_HOST
+              value: "postgresdb"
+            - name: MINIO_HOST
+              value: "minio"

@@ -24,5 +24,6 @@ jobs:
           IMAGE_NAME=ghcr.io/${{ github.repository }}/${{ matrix.package }}
           IMAGE_NIGHTLY=${IMAGE_NAME}:next
           
+          # Add annotation https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys ?
           podman build --label=REF=${{ github.sha }} -t $IMAGE_NIGHTLY packages/${{ matrix.package }}
           podman push $IMAGE_NIGHTLY
