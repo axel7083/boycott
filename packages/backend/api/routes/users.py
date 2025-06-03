@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, SecretStr
+from sqlalchemy.exc import IntegrityError
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
@@ -33,8 +34,16 @@ async def user_create(user_in: UserCreate, session: SessionDep):
     )
     # Add it to DB
     session.add(new_user)
-    # commit change
-    session.commit()
+
+    try:
+        # commit change
+        session.commit()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=401,
+            detail="User already exists",
+        )
+
     return new_user
 
 class UserLogin(BaseModel):

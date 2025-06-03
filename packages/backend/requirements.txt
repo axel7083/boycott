@@ -5,3 +5,7 @@ passlib
 bcrypt
 pyjwt
 minio
+python-multipart
+Pillow
+pydantic-settings
+uvicorn

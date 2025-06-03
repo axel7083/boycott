@@ -9,6 +9,17 @@ data:
   POSTGRES_USER: testUser
   POSTGRES_PASSWORD: testPassword
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresdb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,6 +43,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: db-secret-credentials
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgresdb-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -56,6 +74,16 @@ spec:
   resources:
     requests:
       storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-secret-credentials
+  labels:
+    app: minio
+data:
+  MINIO_ROOT_USER: admin
+  MINIO_ROOT_PASSWORD: Password1234
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -82,11 +110,9 @@ spec:
             hostPort: 9000
           - containerPort: 9001
             hostPort: 9001
-          env:
-            - name: MINIO_ROOT_USER
-              value: admin
-            - name: MINIO_ROOT_PASSWORD
-              value: Password1234
+          envFrom:
+            - configMapRef:
+                name: minio-secret-credentials
           command:
             - /bin/bash
             - -c

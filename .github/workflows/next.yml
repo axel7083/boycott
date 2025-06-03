@@ -1,0 +1,28 @@
+name: next
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    name: Build & Publish ${{ matrix.package }}
+    strategy:
+      matrix:
+        package: [ "backend" ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to ghcr.io
+        run: podman login --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} ghcr.io
+
+      - name: Build & Publish
+        id: publish-image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository }}/${{ matrix.package }}
+          IMAGE_NIGHTLY=${IMAGE_NAME}:next
+          
+          podman build --label=REF=${{ github.sha }} -t $IMAGE_NIGHTLY packages/${{ matrix.package }}
+          podman push $IMAGE_NIGHTLY
