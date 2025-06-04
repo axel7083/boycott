@@ -15,6 +15,7 @@ spec:
       containers:
         - name: backend
           image: ghcr.io/axel7083/boycott/backend:next
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
               hostPort: 8888
@@ -30,7 +31,7 @@ spec:
               value: "postgresdb"
             - name: MINIO_HOST
               value: "minio"
-            - name: RESTRICT_IPS
+            - name: RESTRICT_HOSTS
               value: "true"
-            - name: WHITELISTED_IPS
-              value: "213.32.4.0/24,54.39.240.0/24,144.217.9.0/24" # OVH output gateway
+            - name: TRUSTED_HOSTS
+              value: "stefanini.dev"

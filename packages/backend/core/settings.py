@@ -28,12 +28,12 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
 
     # prevent unauthorized access
-    RESTRICT_IPS: bool = False
-    WHITELISTED_IPS: Annotated[List[str], NoDecode] = []
+    RESTRICT_HOSTS: bool = False
+    TRUSTED_HOSTS: Annotated[List[str], NoDecode] = []
 
-    @field_validator('WHITELISTED_IPS', mode='before')
+    @field_validator('TRUSTED_HOSTS', mode='before')
     @classmethod
-    def decode_white_listed_ips(cls, raw: str) -> list[str]:
-        return [ip for ip in raw.split(',')]
+    def decode_trusted_hosts(cls, raw: str) -> list[str]:
+        return [host for host in raw.split(',')]
 
 settings = Settings()  # type: ignore
