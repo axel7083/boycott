@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-secret-credentials
+  labels:
+    app: postgresdb
+data:
+  POSTGRES_DB: testDB
+  POSTGRES_USER: testUser
+  POSTGRES_PASSWORD: testPassword
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresdb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresdb-deployment
+  labels:
+    app: postgresdb-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresdb
+  template:
+    metadata:
+      labels:
+        app: postgresdb
+    spec:
+      containers:
+        - name: postgresdb
+          image: docker.io/library/postgres:latest
+          ports:
+            - containerPort: 5432
+              hostPort: 5432
+          envFrom:
+            - configMapRef:
+                name: db-secret-credentials
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgresdb-pvc

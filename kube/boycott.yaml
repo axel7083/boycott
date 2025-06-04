@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/axel7083/boycott/backend:next
+          ports:
+            - containerPort: 80
+              hostPort: 8888
+          envFrom:
+            # postgres DB & USER & PASSWORD
+            - configMapRef:
+                name: db-secret-credentials
+            # minio USER & PASSWORD
+            - configMapRef:
+                name: minio-secret-credentials
+          env:
+            - name: POSTGRES_HOST
+              value: "postgresdb"
+            - name: MINIO_HOST
+              value: "minio"
+            - name: RESTRICT_IPS
+              value: "true"
+            - name: WHITELISTED_IPS
+              value: "213.32.4.0/24,54.39.240.0/24,144.217.9.0/24" # OVH output gateway

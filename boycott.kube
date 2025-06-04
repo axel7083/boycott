@@ -1,0 +1,4 @@
+[Kube]
+Yaml=minio.yaml
+Yaml=postgresdb.yaml
+Yaml=boycott.yaml
