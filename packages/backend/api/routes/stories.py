@@ -33,9 +33,39 @@ async def get_story(
 ):
     user_story = session.get(Story, story_id)
     if user_story is None:
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(status_code=404, detail="Story not found")
 
     return user_story
+
+@router.delete("/{story_id}")
+async def delete_story(
+        story_id: str,
+        current_user: CurrentUserDep,
+        session: SessionDep
+):
+    user_story = session.get(Story, story_id)
+    if user_story is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Story not found"
+        )
+
+    if user_story.author != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to delete this story"
+        )
+
+    session.delete(user_story)
+    session.commit()
+
+    # Delete corresponding object in storage
+    minio_client.remove_object(
+        bucket_name=settings.IMAGES_BUCKET,
+        object_name=user_story.asset_hash,
+    )
+
+    return {"success": True}
 
 @router.post("/")
 async def post_story(
