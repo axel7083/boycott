@@ -125,6 +125,7 @@ async def post_story(
     user_story = Story(
         author=current_user.id,
         asset_hash=sha256_hash,
+        asset_size=len(png_content)
     )
     session.add(user_story)
     session.commit()

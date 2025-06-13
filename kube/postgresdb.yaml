@@ -1,13 +1,13 @@
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: db-secret-credentials
   labels:
     app: postgresdb
-data:
-  POSTGRES_DB: testDB
-  POSTGRES_USER: testUser
-  POSTGRES_PASSWORD: testPassword
+stringData:
+  POSTGRES_DB: "testDB"
+  POSTGRES_USER: "testUser"
+  POSTGRES_PASSWORD: "testPassword"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -43,7 +43,7 @@ spec:
             - containerPort: 5432
               hostPort: 5432
           envFrom:
-            - configMapRef:
+            - secretRef:
                 name: db-secret-credentials
           volumeMounts:
             - mountPath: /var/lib/postgresql/data

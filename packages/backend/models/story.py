@@ -12,3 +12,4 @@ class Story(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     # might be nice in the future to have a dedicated asset table
     asset_hash: str = Field(max_length=64, min_length=64)
+    asset_size: int = Field()

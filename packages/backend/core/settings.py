@@ -33,7 +33,10 @@ class Settings(BaseSettings):
 
     @field_validator('TRUSTED_HOSTS', mode='before')
     @classmethod
-    def decode_trusted_hosts(cls, raw: str) -> list[str]:
-        return [host for host in raw.split(',')]
+    def decode_trusted_hosts(cls, raw: str | list[str]) -> list[str]:
+        if type(raw) is str:
+            return [host for host in raw.split(',')]
+        else:
+            return raw
 
 settings = Settings()  # type: ignore

@@ -10,14 +10,14 @@ spec:
       storage: 5Gi
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: minio-secret-credentials
   labels:
     app: minio
-data:
-  MINIO_ROOT_USER: admin
-  MINIO_ROOT_PASSWORD: Password1234
+stringData:
+  MINIO_ROOT_USER: "admin"
+  MINIO_ROOT_PASSWORD: "Password1234"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -44,7 +44,7 @@ spec:
           - containerPort: 9001
             hostPort: 9001
           envFrom:
-            - configMapRef:
+            - secretRef:
                 name: minio-secret-credentials
           command:
             - /bin/bash
