@@ -8,11 +8,10 @@ from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
+from api.routes.users import get_usage
 from core.minio import minio_client
 from core.settings import settings
 from models.story import Story
-
-MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
@@ -79,10 +78,17 @@ async def post_story(
             detail="Image size is required."
         )
 
-    if image.size > MAX_IMAGE_SIZE:
+    if image.size > settings.MAX_IMAGE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Image too large. Maximum size is 5MB."
+        )
+
+    usage = get_usage(current_user, session)
+    if usage.asset_size_sum + image.size > usage.asset_size_limit:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image too large. Not enough space left"
         )
 
     # 1. Read uploaded content

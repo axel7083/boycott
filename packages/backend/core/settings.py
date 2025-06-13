@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     RESTRICT_HOSTS: bool = False
     TRUSTED_HOSTS: Annotated[List[str], NoDecode] = []
 
+    # asset configuration
+    MAX_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5MB
+    MAX_SUM_STORAGE: int = MAX_IMAGE_SIZE * 20 # 100MB
+
     @field_validator('TRUSTED_HOSTS', mode='before')
     @classmethod
     def decode_trusted_hosts(cls, raw: str | list[str]) -> list[str]:
