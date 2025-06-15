@@ -21,10 +21,10 @@ spec:
               hostPort: 8888
           envFrom:
             # postgres DB & USER & PASSWORD
-            - configMapRef:
+            - secretRef:
                 name: db-secret-credentials
             # minio USER & PASSWORD
-            - configMapRef:
+            - secretRef:
                 name: minio-secret-credentials
           env:
             - name: POSTGRES_HOST

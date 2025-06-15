@@ -8,7 +8,7 @@ from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
-from api.routes.users import get_usage
+from api.utils.usage import get_user_usage
 from core.minio import minio_client
 from core.settings import settings
 from models.story import Story
@@ -84,7 +84,7 @@ async def post_story(
             detail="Image too large. Maximum size is 5MB."
         )
 
-    usage = get_usage(current_user, session)
+    usage = get_user_usage(current_user, session)
     if usage.asset_size_sum + image.size > usage.asset_size_limit:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

@@ -6,10 +6,10 @@ from sqlalchemy.exc import IntegrityError
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
+from api.utils.usage import get_user_usage
 from core import security
 from core.security import get_password_hash, verify_password
 from core.settings import settings
-from models.story import Story
 from models.user import User
 from models.token import Token
 from sqlmodel import select
@@ -82,15 +82,4 @@ async def me(current_user: CurrentUserDep):
 
 @router.get("/usage")
 async def get_usage(current_user: CurrentUserDep, session: SessionDep):
-    statement = select(Story).where(Story.author == current_user.id)
-
-    results = session.exec(statement)
-
-    asset_size_sum = 0
-    for story in results:
-        asset_size_sum = asset_size_sum + story.asset_size
-
-    return {
-        "asset_size_sum": asset_size_sum,
-        "asset_size_limit": settings.MAX_SUM_STORAGE,
-    }
+    return get_user_usage(current_user, session)
