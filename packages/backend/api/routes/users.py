@@ -1,6 +1,7 @@
 from datetime import timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, SecretStr
 from sqlalchemy.exc import IntegrityError
 
@@ -79,6 +80,21 @@ async def me(current_user: CurrentUserDep):
     return {
         "username": current_user.username,
     }
+
+@router.get("/search")
+async def search(
+        pattern: Annotated[str | None, Query(max_length=50, min_length=3)],
+        current_user: CurrentUserDep,
+        session: SessionDep
+):
+    # always limit to 10 results
+    statement = select(User).where(User.username.contains(pattern)).limit(10)
+    users = session.exec(statement).all()
+
+    return [{
+        "username": user.username,
+        "user_id": user.id
+    } for user in users if user.id != current_user.id]
 
 @router.get("/usage")
 async def get_usage(current_user: CurrentUserDep, session: SessionDep):
