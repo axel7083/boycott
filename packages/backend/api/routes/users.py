@@ -47,7 +47,12 @@ async def user_create(user_in: UserCreate, session: SessionDep):
             detail="User already exists",
         )
 
-    return new_user
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return Token(
+        access_token=security.create_access_token(
+            new_user.id, expires_delta=access_token_expires
+        )
+    )
 
 class UserLogin(BaseModel):
     username: str
