@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel

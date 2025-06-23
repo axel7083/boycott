@@ -1,12 +1,13 @@
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel, SecretStr
 from sqlalchemy.exc import IntegrityError
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
+from api.utils.image import upload_image_to_asset
 from api.utils.usage import get_user_usage
 from core import security
 from core.security import get_password_hash, verify_password
@@ -93,9 +94,28 @@ async def search(
 
     return [{
         "username": user.username,
+        "avatar": user.avatar_asset_id,
         "user_id": user.id
     } for user in users if user.id != current_user.id]
 
 @router.get("/usage")
 async def get_usage(current_user: CurrentUserDep, session: SessionDep):
     return get_user_usage(current_user, session)
+
+@router.post("/avatar")
+async def set_avatar(
+        image: UploadFile,
+        current_user: CurrentUserDep,
+        session: SessionDep
+):
+    asset = await upload_image_to_asset(
+        image=image,
+        current_user=current_user,
+        session=session
+    )
+
+    session.add(asset)
+    current_user.avatar_asset_id = asset.id
+    session.add(current_user)
+
+    session.commit()
