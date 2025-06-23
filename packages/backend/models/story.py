@@ -8,8 +8,7 @@ class Story(SQLModel, table=True):
         default_factory=uuid.uuid4,
         primary_key=True,
     )
-    author: uuid.UUID = Field(default=None, foreign_key="user.id")
+    author: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now)
-    # might be nice in the future to have a dedicated asset table
-    asset_hash: str = Field(max_length=64, min_length=64)
-    asset_size: int = Field()
+
+    asset_id: uuid.UUID = Field(foreign_key="asset.id")

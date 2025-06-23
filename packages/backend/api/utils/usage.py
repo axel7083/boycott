@@ -1,7 +1,7 @@
 from sqlmodel import Session, select
 
 from core.settings import settings
-from models.Usage import Usage
+from models.usage import Usage
 from models.story import Story
 from models.user import User
 

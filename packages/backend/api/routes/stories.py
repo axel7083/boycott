@@ -11,6 +11,7 @@ from api.dependencies.session import SessionDep
 from api.utils.usage import get_user_usage
 from core.minio import minio_client
 from core.settings import settings
+from models.asset import Asset, AssetType
 from models.story import Story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
@@ -127,12 +128,19 @@ async def post_story(
             detail="Failed to store image"
         )
 
-    # 5. Save story
+    # 5. Create the asset row
+    asset = Asset(
+        asset_hash=sha256_hash,
+        asset_size=len(png_content),
+        assert_type=AssetType.IMAGE,
+    )
+
+    # 6. Create story row
     user_story = Story(
         author=current_user.id,
-        asset_hash=sha256_hash,
-        asset_size=len(png_content)
+        asset_id=asset.id,
     )
+    session.add(asset)
     session.add(user_story)
     session.commit()
 

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -6,12 +8,13 @@ from core.minio import init_buckets
 from core.settings import settings
 from core.db import init_db
 
-app = FastAPI()
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
     init_db()
     init_buckets()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 if settings.RESTRICT_HOSTS:
     app.add_middleware(

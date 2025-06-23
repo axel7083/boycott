@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from pydantic import EmailStr
 from sqlmodel import Field, SQLModel
@@ -8,3 +9,5 @@ class User(SQLModel, table=True):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     username: str = Field(unique=True, max_length=64)
     password_hash: str = Field(max_length=255)
+    # user avatar
+    avatar_asset_id: uuid.UUID | None = Field(default=None, foreign_key="asset.id")
