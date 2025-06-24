@@ -7,7 +7,8 @@ from api.dependencies.session import SessionDep
 from api.utils.image import upload_image_to_asset
 from core.minio import minio_client
 from core.settings import settings
-from models.story import Story
+from models.sucess_response import SuccessResponse
+from models.tables.story import Story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
@@ -60,7 +61,7 @@ async def delete_story(
         object_name=user_story.asset_hash,
     )
 
-    return {"success": True}
+    return SuccessResponse()
 
 @router.post("/")
 async def post_story(

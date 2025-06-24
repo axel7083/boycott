@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
-from models.follow_request import FollowRequest, FollowRequestStatus
-from models.follower import Follower
+from models.sucess_response import SuccessResponse
+from models.tables.follow_request import FollowRequest, FollowRequestStatus
+from models.tables.follower import Follower
 from sqlmodel import select
 from starlette import status
 
@@ -36,7 +37,7 @@ async def accept_follower(
     session.add(follower)
     session.commit()
 
-    return {"success": True}
+    return SuccessResponse()
 
 @router.get("/pending")
 async def get_pending_followers(

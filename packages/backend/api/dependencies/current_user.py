@@ -9,7 +9,7 @@ from starlette import status
 from api.dependencies.session import SessionDep
 from core import security
 from core.settings import settings
-from models.user import User
+from models.tables.user import User
 from models.token import TokenPayload
 
 async def get_current_user(session: SessionDep, authorization: Annotated[str | None, Header()] = None) -> User:

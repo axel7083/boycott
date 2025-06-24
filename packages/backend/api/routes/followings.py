@@ -3,9 +3,9 @@ from fastapi import APIRouter, HTTPException
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
-from models.follow_request import FollowRequest
-from models.follower import Follower
-from models.user import User
+from models.tables.follow_request import FollowRequest
+from models.tables.follower import Follower
+from models.tables.user import User
 from starlette import status
 
 router = APIRouter(prefix="/followings", tags=["followings"])

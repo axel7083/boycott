@@ -9,8 +9,8 @@ from starlette import status
 from api.utils.usage import get_user_usage
 from core.minio import minio_client
 from core.settings import settings
-from models.asset import Asset, AssetType
-from models.user import User
+from models.tables.asset import Asset, AssetType
+from models.tables.user import User
 
 
 async def upload_image_to_asset(

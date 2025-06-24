@@ -8,7 +8,7 @@ from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from core.minio import minio_client
 from core.settings import settings
-from models.asset import Asset, AssetVisibility
+from models.tables.asset import Asset, AssetVisibility
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 

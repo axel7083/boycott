@@ -2,8 +2,8 @@ from sqlmodel import Session, select
 
 from core.settings import settings
 from models.usage import Usage
-from models.story import Story
-from models.user import User
+from models.tables.story import Story
+from models.tables.user import User
 
 
 def get_user_usage(user: User, session: Session) -> Usage:
