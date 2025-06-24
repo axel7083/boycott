@@ -5,10 +5,10 @@ from fastapi.responses import StreamingResponse
 from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
+from api.dependencies.logger import LoggerDep
 from api.dependencies.session import SessionDep
 from core.minio import minio_client
 from core.settings import settings
-from main import logger
 from models.tables.asset import Asset, AssetVisibility
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -17,7 +17,8 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 async def get_image(
     asset_id: uuid.UUID,
     current_user: CurrentUserDep,
-    session: SessionDep
+    session: SessionDep,
+    logger: LoggerDep,
 ):
     asset = session.get(Asset, asset_id)
     if asset is None:
