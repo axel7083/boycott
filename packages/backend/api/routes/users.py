@@ -107,7 +107,7 @@ async def search(
         UserInfo(
             id=user.id,
             username=user.username,
-            avatar_id=user.avatar_asset_id
+            avatar_asset_id=user.avatar_asset_id
         ) for user in users if user.id != current_user.id
     ]
 
