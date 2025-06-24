@@ -43,4 +43,5 @@ async def get_image(
             }
         )
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=404, detail="Image not found")

@@ -8,6 +8,7 @@ from api.utils.image import upload_image_to_asset
 from core.minio import minio_client
 from core.settings import settings
 from models.sucess_response import SuccessResponse
+from models.tables.asset import Asset
 from models.tables.story import Story
 
 router = APIRouter(prefix="/stories", tags=["stories"])
@@ -40,6 +41,7 @@ async def delete_story(
         session: SessionDep
 ):
     user_story = session.get(Story, story_id)
+    asset = session.get(Asset, user_story.asset_id)
     if user_story is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,7 +60,7 @@ async def delete_story(
     # Delete corresponding object in storage
     minio_client.remove_object(
         bucket_name=settings.IMAGES_BUCKET,
-        object_name=user_story.asset_hash,
+        object_name=asset.asset_hash,
     )
 
     return SuccessResponse()
