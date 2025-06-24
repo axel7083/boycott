@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
-from models.tables.follow_request import FollowRequest
+from models.sucess_response import SuccessResponse
+from models.tables.follow_request import FollowRequest, FollowRequestStatus
 from models.tables.follower import Follower
 from models.tables.user import User
 from starlette import status
@@ -15,7 +16,7 @@ async def follow(
         to_user: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep
-):
+) -> SuccessResponse:
     if to_user == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,14 +53,14 @@ async def follow(
     session.add(follow_request)
     session.commit()
 
-    return {"success": True}
+    return SuccessResponse()
 
 @router.get("/request/{to_user}/status")
 async def get_follow_status(
         to_user: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep
-):
+) -> FollowRequestStatus:
     follow_request = session.get(FollowRequest, (current_user.id, to_user))
     if follow_request is None:
         raise HTTPException(

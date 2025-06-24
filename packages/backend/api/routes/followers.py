@@ -10,6 +10,9 @@ from models.tables.follower import Follower
 from sqlmodel import select
 from starlette import status
 
+from models.tables.user import User
+from models.user_info import UserInfo
+
 router = APIRouter(prefix="/followers", tags=["followers"])
 
 @router.post("/accept/{user_id}")
@@ -43,9 +46,17 @@ async def accept_follower(
 async def get_pending_followers(
         current_user: CurrentUserDep,
         session: SessionDep
-):
-    statement = (select(FollowRequest)
+) -> list[UserInfo]:
+    statement = (select(FollowRequest, User)
                  .where(FollowRequest.to_user == current_user.id)
                  .where(FollowRequest.status == FollowRequestStatus.PENDING)
+                 .where(FollowRequest.from_user == User.id) # joining tables
                  )
-    return session.exec(statement).all()
+
+    return [
+        UserInfo(
+            id=user.id,
+            avatar_id=user.avatar_asset_id,
+            username=user.username,
+        ) for request, user in session.exec(statement)
+    ]
