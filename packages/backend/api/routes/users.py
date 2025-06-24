@@ -140,15 +140,32 @@ async def set_avatar(
         current_user: CurrentUserDep,
         session: SessionDep
 ) -> SuccessResponse:
+    # Upload new asset to minio
     asset = await upload_image_to_asset(
         image=image,
         current_user=current_user,
         session=session
     )
 
+    # Delete any existing assets first
+    old_avatar_asset: Asset | None = None
+    if current_user.avatar_asset_id is not None:
+        # Get corresponding asset
+        old_avatar_asset = session.get(Asset, current_user.avatar_asset_id)
+
+        # Delete corresponding object in storage
+        minio_client.remove_object(
+            bucket_name=settings.IMAGES_BUCKET,
+            object_name=old_avatar_asset.asset_hash,
+        )
+
     session.add(asset)
     current_user.avatar_asset_id = asset.id
     session.add(current_user)
+
+    # Delete the asset
+    if old_avatar_asset:
+        session.delete(old_avatar_asset)
 
     session.commit()
 
