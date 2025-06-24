@@ -24,10 +24,12 @@ async def get_image(
 
     # if the asset is private
     if asset.author != current_user.id and asset.asset_visibility == AssetVisibility.PRIVATE:
+        err = f"asset {asset_id} is private. current user {current_user.id} does not have permission to access asset authored by {asset.author} with visibility {asset.asset_visibility}."
+        print(err)
         # TODO: Handle permission
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"asset {asset_id} is private. current user {current_user.id} does not have permission to access asset authored by {asset.author} with visibility {asset.asset_visibility}."
+            detail=err
         )
 
     try:
