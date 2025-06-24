@@ -8,6 +8,7 @@ from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from core.minio import minio_client
 from core.settings import settings
+from main import logger
 from models.tables.asset import Asset, AssetVisibility
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -25,7 +26,7 @@ async def get_image(
     # if the asset is private
     if asset.author != current_user.id and asset.asset_visibility == AssetVisibility.PRIVATE:
         err = f"asset {asset_id} is private. current user {current_user.id} does not have permission to access asset authored by {asset.author} with visibility {asset.asset_visibility}."
-        print(err)
+        logger.info(err)
         # TODO: Handle permission
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

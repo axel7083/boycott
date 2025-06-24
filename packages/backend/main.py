@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +8,8 @@ from api.main import api_router
 from core.minio import init_buckets
 from core.settings import settings
 from core.db import init_db
+
+logger = logging.getLogger('uvicorn.error')
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):

@@ -90,7 +90,7 @@ async def me(current_user: CurrentUserDep) -> UserInfo:
     return UserInfo(
         id=current_user.id,
         username=current_user.username,
-        avatar_id=current_user.avatar_asset_id
+        avatar_asset_id=current_user.avatar_asset_id
     )
 
 @router.get("/search")
