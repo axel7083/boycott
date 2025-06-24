@@ -1,8 +1,9 @@
+import uuid
 from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, EmailStr, constr
 from sqlalchemy.exc import IntegrityError
 
 from api.dependencies.current_user import CurrentUserDep
@@ -19,16 +20,21 @@ from sqlmodel import select
 
 from models.usage import Usage
 from models.user_info import UserInfo
-
 router = APIRouter(prefix="/users", tags=["users"])
 
 class UserCreate(BaseModel):
-    email: str
+    email: EmailStr
     password: SecretStr
-    username: str
+    # lowercase alphanumeric characters
+    username: constr(pattern="^[a-z0-9]+$")
+
+class LoginResponse(BaseModel):
+    username: constr(pattern="^[a-z0-9]+$")
+    token: Token
+    user_id: uuid.UUID
 
 @router.post("/create")
-async def user_create(user_in: UserCreate, session: SessionDep) -> Token:
+async def user_create(user_in: UserCreate, session: SessionDep) -> LoginResponse:
     # TODO: verify username & email not already in use
     # TODO: verify username only contain acceptable character (only ASCII? no space?)
 
@@ -52,10 +58,14 @@ async def user_create(user_in: UserCreate, session: SessionDep) -> Token:
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
-        access_token=security.create_access_token(
-            new_user.id, expires_delta=access_token_expires
-        )
+    return LoginResponse(
+        token=Token(
+            access_token=security.create_access_token(
+                user_id=new_user.id, expires_delta=access_token_expires
+            )
+        ),
+        username=user_in.username,
+        user_id=new_user.id,
     )
 
 class UserLogin(BaseModel):
@@ -63,7 +73,7 @@ class UserLogin(BaseModel):
     password: SecretStr
 
 @router.post("/login")
-async def login(user_in: UserLogin, session: SessionDep) -> Token:
+async def login(user_in: UserLogin, session: SessionDep) -> LoginResponse:
     statement = select(User).where(User.username == user_in.username)
     user = session.exec(statement).first()
     if user is None:
@@ -79,10 +89,14 @@ async def login(user_in: UserLogin, session: SessionDep) -> Token:
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return Token(
-        access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        )
+    return LoginResponse(
+        token=Token(
+            access_token=security.create_access_token(
+                user_id=user.id, expires_delta=access_token_expires
+            )
+        ),
+        username=user_in.username,
+        user_id=user.id,
     )
 
 @router.get("/me")
