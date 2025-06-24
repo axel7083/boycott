@@ -7,8 +7,8 @@ from starlette import status
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.logger import LoggerDep
 from api.dependencies.session import SessionDep
+from api.utils.minio import stream_resource
 from core.minio import minio_client
-from core.settings import settings
 from models.tables.asset import Asset, AssetVisibility
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -19,7 +19,7 @@ async def get_image(
     current_user: CurrentUserDep,
     session: SessionDep,
     logger: LoggerDep,
-):
+) -> StreamingResponse:
     asset = session.get(Asset, asset_id)
     if asset is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
@@ -34,21 +34,7 @@ async def get_image(
             detail=err
         )
 
-    try:
-        # 2. Get the object from MinIO
-        response = minio_client.get_object(
-            bucket_name=settings.IMAGES_BUCKET,
-            object_name=asset.asset_hash,
-        )
-
-        # 3. Stream the content back to the client
-        return StreamingResponse(
-            response,
-            media_type="image/png",
-            headers={
-                "Content-Disposition": f"inline; filename={asset.asset_hash}.png"
-            }
-        )
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=404, detail="Image not found")
+    return stream_resource(
+        minio_client=minio_client,
+        asset_hash=asset.asset_hash,
+    )

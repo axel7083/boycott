@@ -5,15 +5,20 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel, SecretStr, EmailStr, constr
 from sqlalchemy.exc import IntegrityError
+from starlette import status
+from starlette.responses import StreamingResponse
 
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from api.utils.image import upload_image_to_asset
+from api.utils.minio import stream_resource
 from api.utils.usage import get_user_usage
 from core import security
+from core.minio import minio_client
 from core.security import get_password_hash, verify_password
 from core.settings import settings
 from models.sucess_response import SuccessResponse
+from models.tables.asset import Asset
 from models.tables.user import User
 from models.token import Token
 from sqlmodel import select
@@ -148,3 +153,69 @@ async def set_avatar(
     session.commit()
 
     return SuccessResponse()
+
+@router.delete("/avatar")
+async def delete_avatar(
+        current_user: CurrentUserDep,
+        session: SessionDep
+) -> SuccessResponse:
+    statement = select(User, Asset).where(
+        User.id == current_user.id,
+        Asset.id == User.avatar_asset_id,
+    )
+
+    results = session.exec(statement).first()
+    if results is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Avatar not found",
+        )
+
+    user, asset = results
+
+    # Delete corresponding object in storage
+    minio_client.remove_object(
+        bucket_name=settings.IMAGES_BUCKET,
+        object_name=asset.asset_hash,
+    )
+    # update user
+    user.avatar_asset_id = None
+    session.add(user)
+    # delete asset row
+    session.delete(asset)
+    # commit
+    session.commit()
+
+    return SuccessResponse()
+
+@router.get("/avatar/{user_id}")
+async def get_avatar(
+        user_id: uuid.UUID,
+        current_user: CurrentUserDep,
+        session: SessionDep
+) -> StreamingResponse:
+    # TODO: ensure blocked user cannot access data
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+        )
+
+    statement = select(User, Asset).where(
+        User.id == user_id,
+        Asset.id == User.avatar_asset_id,
+    )
+
+    results = session.exec(statement).first()
+    if results is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Avatar not found",
+        )
+
+    _, asset = results
+
+    return stream_resource(
+        minio_client=minio_client,
+        asset_hash=asset.asset_hash,
+    )
