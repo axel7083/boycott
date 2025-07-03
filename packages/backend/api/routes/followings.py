@@ -4,8 +4,7 @@ from fastapi import APIRouter, HTTPException
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from models.sucess_response import SuccessResponse
-from models.tables.follow_request import FollowRequest, FollowRequestStatus
-from models.tables.follower import Follower
+from models.tables.follower import Follower, FollowStatus
 from models.tables.user import User
 from starlette import status
 
@@ -37,7 +36,7 @@ async def follow(
             detail="Already following this user"
         )
 
-    follow_request = session.get(FollowRequest, (current_user.id, to_user))
+    follow_request = session.get(Follower, (current_user.id, to_user))
     if follow_request is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,7 +45,7 @@ async def follow(
 
     # TODO: handle public account
 
-    follow_request = FollowRequest(
+    follow_request = Follower(
         from_user=current_user.id,
         to_user=to_user
     )
@@ -60,8 +59,8 @@ async def get_follow_status(
         to_user: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep
-) -> FollowRequestStatus:
-    follow_request = session.get(FollowRequest, (current_user.id, to_user))
+) -> FollowStatus:
+    follow_request = session.get(Follower, (current_user.id, to_user))
     if follow_request is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

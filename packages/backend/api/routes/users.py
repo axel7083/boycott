@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from pydantic import BaseModel, SecretStr, EmailStr, constr
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import aliased
 from starlette import status
 from starlette.responses import StreamingResponse
 
@@ -19,12 +20,15 @@ from core.security import get_password_hash, verify_password
 from core.settings import settings
 from models.sucess_response import SuccessResponse
 from models.tables.asset import Asset
+from models.tables.follower import Follower
 from models.tables.user import User
 from models.token import Token
-from sqlmodel import select
+from sqlmodel import select, and_
 
 from models.usage import Usage
 from models.user_info import UserInfo
+from models.user_info_search import UserInfoSearch
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 class UserCreate(BaseModel):
@@ -117,17 +121,26 @@ async def search(
         pattern: Annotated[str | None, Query(max_length=50, min_length=3)],
         current_user: CurrentUserDep,
         session: SessionDep
-) -> list[UserInfo]:
-    # always limit to 10 results
-    statement = select(User).where(User.username.contains(pattern)).limit(10)
-    users = session.exec(statement).all()
+) -> list[UserInfoSearch]:
+    stmt = (
+        select(User, Follower.status)
+        # join Follower table
+        .join(Follower, onclause=and_(Follower.from_user == current_user.id, Follower.to_user == User.id), isouter=True)
+        # username like pattern provided
+        .where(User.username.contains(pattern), User.id != current_user.id)
+        .limit(10)
+    )
+
+    results = session.exec(stmt).all()
 
     return [
-        UserInfo(
+        UserInfoSearch(
             id=user.id,
             username=user.username,
-            avatar_asset_id=user.avatar_asset_id
-        ) for user in users if user.id != current_user.id
+            avatar_asset_id=user.avatar_asset_id,
+            follow_status=status
+        )
+        for user, status in results
     ]
 
 @router.get("/usage")

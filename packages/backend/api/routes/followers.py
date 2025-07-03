@@ -5,8 +5,7 @@ from fastapi import APIRouter, HTTPException
 from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from models.sucess_response import SuccessResponse
-from models.tables.follow_request import FollowRequest, FollowRequestStatus
-from models.tables.follower import Follower
+from models.tables.follower import Follower, FollowStatus
 from sqlmodel import select
 from starlette import status
 
@@ -22,7 +21,7 @@ async def accept_follower(
         session: SessionDep
 ):
     # Get follow request from user_id to current
-    follow_request = session.get(FollowRequest, (user_id, current_user.id))
+    follow_request = session.get(Follower, (user_id, current_user.id))
     if follow_request is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -47,10 +46,10 @@ async def get_pending_followers(
         current_user: CurrentUserDep,
         session: SessionDep
 ) -> list[UserInfo]:
-    statement = (select(FollowRequest, User)
-                 .where(FollowRequest.to_user == current_user.id)
-                 .where(FollowRequest.status == FollowRequestStatus.PENDING)
-                 .where(FollowRequest.from_user == User.id) # joining tables
+    statement = (select(Follower, User)
+                 .where(Follower.to_user == current_user.id)
+                 .where(Follower.status == FollowStatus.PENDING)
+                 .where(Follower.from_user == User.id) # joining tables
                  )
 
     return [
