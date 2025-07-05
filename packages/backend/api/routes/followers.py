@@ -14,7 +14,30 @@ from models.user_info import UserInfo
 
 router = APIRouter(prefix="/followers", tags=["followers"])
 
-@router.post("/accept/{user_id}")
+
+@router.post("/{user_id}/reject")
+async def reject_follower(
+        user_id: uuid.UUID,
+        current_user: CurrentUserDep,
+        session: SessionDep
+):
+    # Get follow request from user_id to current
+    follow_request = session.get(Follower, (user_id, current_user.id))
+    if follow_request is None or follow_request.status != FollowStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No such follow request"
+        )
+
+    # create follower relation
+    follow_request.status = FollowStatus.REJECTED
+    session.add(follow_request)
+    session.commit()
+
+    return SuccessResponse()
+
+
+@router.post("/{user_id}/approve")
 async def accept_follower(
         user_id: uuid.UUID,
         current_user: CurrentUserDep,
@@ -22,21 +45,15 @@ async def accept_follower(
 ):
     # Get follow request from user_id to current
     follow_request = session.get(Follower, (user_id, current_user.id))
-    if follow_request is None:
+    if follow_request is None or follow_request.status != FollowStatus.PENDING:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No such follow request"
         )
 
-    # delete follow request
-    session.delete(follow_request)
-
     # create follower relation
-    follower = Follower(
-        from_user=user_id,
-        to_user=current_user.id
-    )
-    session.add(follower)
+    follow_request.status = FollowStatus.APPROVED
+    session.add(follow_request)
     session.commit()
 
     return SuccessResponse()
@@ -55,7 +72,7 @@ async def get_pending_followers(
     return [
         UserInfo(
             id=user.id,
-            avatar_id=user.avatar_asset_id,
+            avatar_asset_id=user.avatar_asset_id,
             username=user.username,
         ) for request, user in session.exec(statement)
     ]
