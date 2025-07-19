@@ -28,6 +28,12 @@ async def get_story(
     current_user: CurrentUserDep,
     session: SessionDep
 ):
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to delete this story"
+        )
+
     user_story = session.get(Story, story_id)
     if user_story is None:
         raise HTTPException(status_code=404, detail="Story not found")
