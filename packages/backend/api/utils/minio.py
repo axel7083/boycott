@@ -7,6 +7,7 @@ from starlette.responses import StreamingResponse
 
 from core.settings import settings
 
+
 def stream_resource(
         minio_client: Minio,
         asset_hash: str,
@@ -32,3 +33,14 @@ def stream_resource(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Image not found"
         )
+
+
+def try_delete_asset(minio_client: Minio, asset_hash: str) -> None:
+    try:
+        # Delete corresponding object in storage
+        minio_client.remove_object(
+            bucket_name=settings.IMAGES_BUCKET,
+            object_name=asset_hash,
+        )
+    except Exception:
+        pass
