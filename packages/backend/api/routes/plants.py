@@ -2,7 +2,6 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, UploadFile, Form, HTTPException, Query
-from pydantic import BaseModel
 from sqlmodel import select
 from starlette import status
 
@@ -11,7 +10,6 @@ from api.dependencies.session import SessionDep
 from api.utils.image import upload_image_to_asset
 from api.utils.minio import try_delete_asset
 from core.minio import minio_client
-from core.settings import settings
 from models.sucess_response import SuccessResponse
 from models.tables.asset import Asset
 from models.tables.follower import Follower, FollowStatus
@@ -92,8 +90,12 @@ async def delete_update(
     asset = session.get(Asset, plant_update.asset_id)
 
     try:
-        session.delete(asset)
+        # Delete plant
         session.delete(plant_update)
+        session.commit()
+
+        # Delete corresponding asset
+        session.delete(asset)
         session.commit()
     finally:
         try_delete_asset(minio_client, asset.asset_hash)

@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import HTTPException
 from minio import Minio
+from minio.error import S3Error
 from starlette import status
 from starlette.responses import StreamingResponse
 
@@ -42,5 +43,5 @@ def try_delete_asset(minio_client: Minio, asset_hash: str) -> None:
             bucket_name=settings.IMAGES_BUCKET,
             object_name=asset_hash,
         )
-    except Exception:
-        pass
+    except S3Error as e:
+        print(f"Error deleting object: {e}")
