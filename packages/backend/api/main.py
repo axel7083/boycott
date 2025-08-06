@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from api.routes import users, assets, stories, followers, followings, avatars, plants, feed
+from api.routes import users, assets, followers, followings, avatars, plants, feed
 
 api_router = APIRouter()
 api_router.include_router(users.router)
