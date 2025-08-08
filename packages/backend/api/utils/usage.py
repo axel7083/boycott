@@ -13,7 +13,7 @@ def get_user_usage(user: User, session: Session) -> Usage:
     results = session.exec(statement)
 
     asset_size_sum = 0
-    for story, asset in results:
+    for asset in results:
         asset_size_sum = asset_size_sum + asset.asset_size
 
     return Usage(asset_size_sum=asset_size_sum, asset_size_limit=settings.MAX_SUM_STORAGE)
