@@ -271,7 +271,12 @@ async def get_plant_updates(
     # ensure current user can read plant
     assert_plant_read_permission(plant, current_user, session)
 
-    query = select(PlantUpdate).where(PlantUpdate.plant_id == plant.id).offset(offset).limit(limit)
+    query = (select(PlantUpdate)
+             .where(PlantUpdate.plant_id == plant.id)
+             .order_by(PlantUpdate.created_at.desc())
+             .offset(offset)
+             .limit(limit)
+             )
     return session.exec(query).all()
 
 
