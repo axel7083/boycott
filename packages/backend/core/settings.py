@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: Annotated[List[str], NoDecode] = []
 
     # asset configuration
-    MAX_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5MB
+    MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10MB
     MAX_SUM_STORAGE: int = MAX_IMAGE_SIZE * 20 # 100MB
 
     @field_validator('TRUSTED_HOSTS', mode='before')
