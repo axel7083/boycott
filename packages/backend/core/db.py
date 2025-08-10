@@ -14,7 +14,7 @@ def get_engine_url() -> str:
 
 engine = create_engine(
     get_engine_url(),
-    echo=True,  # Enable SQL query logging
+    echo=False,  # Enable SQL query logging
     pool_pre_ping=True,  # Enable connection health checks
     connect_args={"connect_timeout": 5}  # Add connection timeout
 )
