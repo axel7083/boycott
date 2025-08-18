@@ -6,8 +6,7 @@ from sqlalchemy import Column
 from sqlmodel import Field, SQLModel, Enum as DBEnum
 
 class AssetType(str, Enum):
-    IMAGE = "image"
-    VIDEO = "video"
+    IMAGE_JPEG = "image/jpeg"
 
 class AssetVisibility(str, Enum):
     PUBLIC = "public"
@@ -18,7 +17,8 @@ class Asset(SQLModel, table=True):
 
     author: uuid.UUID = Field(foreign_key="user.id")
 
-    asset_hash: str = Field(max_length=64, min_length=64)
+    # etag is computed by Minio
+    asset_etag: str = Field(max_length=64, min_length=64)
     asset_size: int = Field()
     asset_type: AssetType = Field(sa_column=Column(DBEnum(AssetType)))
     asset_visibility: AssetVisibility = Field(default=AssetVisibility.PRIVATE, sa_column=Column(DBEnum(AssetVisibility)))

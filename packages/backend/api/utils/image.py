@@ -1,22 +1,23 @@
-import hashlib
-from io import BytesIO
+import uuid
 
-from PIL import UnidentifiedImageError, Image
 from fastapi import UploadFile, HTTPException
+from minio.helpers import ObjectWriteResult
 from sqlmodel import Session
 from starlette import status
 
 from api.utils.usage import get_user_usage
 from core.minio import minio_client
 from core.settings import settings
-from models.tables.asset import Asset, AssetType
+from models.tables.asset import Asset, AssetType, AssetVisibility
 from models.tables.user import User
 
+AUTHOR_METADATA_KEY = "author"
 
 async def upload_image_to_asset(
         image: UploadFile,
         current_user: User,
-        session: Session
+        session: Session,
+        visibility: AssetVisibility = AssetVisibility.PRIVATE,
 ) -> Asset:
     if image.size is None:
         raise HTTPException(
@@ -24,10 +25,17 @@ async def upload_image_to_asset(
             detail="Image size is required."
         )
 
+    # 🔑 Assert content type from the request header
+    if image.content_type != "image/jpeg":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported content type: {image.content_type}"
+        )
+
     if image.size > settings.MAX_IMAGE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Image too large. Maximum size is 5MB."
+            detail=f"Image too large. Maximum size is {settings.MAX_IMAGE_SIZE}."
         )
 
     usage = get_user_usage(current_user, session)
@@ -37,35 +45,20 @@ async def upload_image_to_asset(
             detail="Image too large. Not enough space left"
         )
 
-    # 1. Read uploaded content
-    original_content = await image.read()
+    # Generate a unique asset ID to use as object_name in MinIO
+    asset_id = uuid.uuid4()
 
-    # 2. Open the image and convert to PNG
     try:
-        with Image.open(BytesIO(original_content)) as img:
-            # Ensure it's a valid image
-            img = img.convert("RGBA")  # Use RGBA to support transparency if needed
-            png_buffer = BytesIO()
-            img.save(png_buffer, format="PNG")
-            png_buffer.seek(0)
-            png_content = png_buffer.read()
-    except UnidentifiedImageError:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported or invalid image format"
-        )
-
-    # 3. Compute SHA256 of PNG content
-    sha256_hash = hashlib.sha256(png_content).hexdigest()
-
-    # 4. Store PNG in MinIO
-    try:
-        minio_client.put_object(
+        # Stream directly to MinIO
+        result: ObjectWriteResult = minio_client.put_object(
             bucket_name=settings.IMAGES_BUCKET,
-            object_name=sha256_hash,
-            data=BytesIO(png_content),
-            length=len(png_content),
-            content_type="image/png"
+            object_name=str(asset_id),
+            data=image.file,
+            length=image.size,
+            content_type=image.content_type,
+            metadata={
+                AUTHOR_METADATA_KEY: current_user.id,
+            }
         )
     except Exception:
         raise HTTPException(
@@ -75,8 +68,10 @@ async def upload_image_to_asset(
 
     # 5. Create the asset row
     return Asset(
+        id=asset_id,
         author=current_user.id,
-        asset_hash=sha256_hash,
-        asset_size=len(png_content),
-        assert_type=AssetType.IMAGE,
+        asset_etag=result.etag,
+        asset_size=image.size,
+        asset_type=AssetType.IMAGE_JPEG,
+        asset_visibility=visibility,
     )

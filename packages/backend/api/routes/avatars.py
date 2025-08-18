@@ -12,7 +12,7 @@ from api.utils.minio import stream_resource
 from core.minio import minio_client
 from core.settings import settings
 from models.sucess_response import SuccessResponse
-from models.tables.asset import Asset
+from models.tables.asset import Asset, AssetVisibility
 from models.tables.user import User
 
 router = APIRouter(prefix="/avatars", tags=["avatars"])
@@ -28,7 +28,8 @@ async def set_avatar(
     asset = await upload_image_to_asset(
         image=image,
         current_user=current_user,
-        session=session
+        session=session,
+        visibility=AssetVisibility.PUBLIC, # avatars are public
     )
 
     # Delete any existing assets first
@@ -120,5 +121,5 @@ async def get_avatar(
 
     return stream_resource(
         minio_client=minio_client,
-        asset_hash=asset.asset_hash,
+        asset=asset,
     )

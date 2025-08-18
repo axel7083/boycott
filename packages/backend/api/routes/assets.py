@@ -29,14 +29,14 @@ async def get_image(
     if asset.asset_visibility == AssetVisibility.PUBLIC:
         return stream_resource(
             minio_client=minio_client,
-            asset_hash=asset.asset_hash,
+            asset=asset,
         )
 
     # if the current user is the asset's author - let's shortcut and stream
     if asset.author == current_user.id:
         return stream_resource(
             minio_client=minio_client,
-            asset_hash=asset.asset_hash,
+            asset=asset,
         )
 
     # if the current user is an approved follower of asset#author
@@ -44,7 +44,7 @@ async def get_image(
     if follow is not None and follow.status == FollowStatus.APPROVED:
         return stream_resource(
             minio_client=minio_client,
-            asset_hash=asset.asset_hash,
+            asset=asset,
         )
 
     err = f"asset {asset_id} is private. current user {current_user.id} is not an approved follower of {asset.author}."

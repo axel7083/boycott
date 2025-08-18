@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, NoDecode
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = "potatoes"
+    SECRET_KEY: str = "TWFzSQHLdI_NGJT2sWMC_iKswcu9TfTWWw8hW4_Iwwc"
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     # bucket to store the images
@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: Annotated[List[str], NoDecode] = []
 
     # asset configuration
-    MAX_IMAGE_SIZE: int = 10 * 1024 * 1024  # 10MB
-    MAX_SUM_STORAGE: int = MAX_IMAGE_SIZE * 20 # 100MB
+    MAX_IMAGE_SIZE: int = 1 * 1024 * 1024  # 1MB
+    MAX_SUM_STORAGE: int = MAX_IMAGE_SIZE * 100 # 100MB
 
     @field_validator('TRUSTED_HOSTS', mode='before')
     @classmethod
