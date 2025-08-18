@@ -73,7 +73,7 @@ async def register_plant(
         image: UploadFile,
         current_user: CurrentUserDep,
         session: SessionDep
-):
+) -> PlantDetail:
     asset = await upload_image_to_asset(
         image=image,
         current_user=current_user,
@@ -95,7 +95,14 @@ async def register_plant(
     session.add(plant_update)
     session.commit()
 
-    return SuccessResponse()
+    return PlantDetail(
+        id=user_plant.id,
+        owner=user_plant.owner,
+        name=user_plant.name,
+        created_at=user_plant.created_at,
+        dead=user_plant.dead,
+        asset_id=asset.id
+    )
 
 
 @router.delete("/{plant_id}")
