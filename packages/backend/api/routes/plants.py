@@ -9,11 +9,12 @@ from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from api.utils.image import upload_image_to_asset
 from api.utils.minio import try_delete_asset
+from api.utils.permissions import assert_plant_read_permission, assert_is_follower
 from core.minio import minio_client
 from models.sucess_response import SuccessResponse
 from models.tables.asset import Asset
-from models.tables.follower import Follower, FollowStatus
 from models.tables.plant import Plant
+from models.tables.plant_cutting import PlantCutting
 from models.tables.plant_update import PlantUpdate
 
 router = APIRouter(prefix="/plants", tags=["plants"])
@@ -25,8 +26,17 @@ class PlantDetail(Plant):
 @router.get("/")
 async def get_plants(
         current_user: CurrentUserDep,
-        session: SessionDep
+        session: SessionDep,
+        user_id: uuid.UUID | None = Query(default=None),
 ) -> list[PlantDetail]:
+    target_user: uuid.UUID = user_id if user_id is not None else current_user.id
+    if target_user != current_user.id:
+        assert_is_follower(
+            from_user_id=current_user.id,
+            to_user_id=user_id,
+            session=session,
+        )
+
     # Subquery to get the latest plant update for each plant
     latest_update_subquery = (
         select(
@@ -46,7 +56,7 @@ async def get_plants(
             latest_update_subquery,
             Plant.id == latest_update_subquery.c.plant_id
         )
-        .where(Plant.owner == current_user.id)
+        .where(Plant.owner == target_user)
     )
 
     results = session.exec(statement).all()
@@ -69,10 +79,13 @@ async def get_plants(
 
 @router.post("/")
 async def register_plant(
+        current_user: CurrentUserDep,
+        session: SessionDep,
         name: Annotated[str, Form()],
         image: UploadFile,
-        current_user: CurrentUserDep,
-        session: SessionDep
+        parent: Annotated[uuid.UUID | None, Form(
+            title="Parent Plant ID",
+        )] = None,
 ) -> PlantDetail:
     asset = await upload_image_to_asset(
         image=image,
@@ -90,9 +103,25 @@ async def register_plant(
         asset_id=asset.id,
     )
 
+    cutting = None
+    if parent is not None:
+        assert_plant_read_permission(
+            plant=session.get(Plant, parent),
+            user=current_user,
+            session=session,
+        )
+        cutting = PlantCutting(
+            parent_id=parent,
+            cutting_id=user_plant.id,
+        )
+
     session.add(asset)
     session.add(user_plant)
     session.add(plant_update)
+
+    if cutting is not None:
+        session.add(cutting)
+
     session.commit()
 
     return PlantDetail(
@@ -110,7 +139,7 @@ async def delete_plant(
         plant_id: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep
-):
+) -> SuccessResponse:
     plant = session.get(Plant, plant_id)
     if plant is None:
         raise HTTPException(
@@ -144,149 +173,6 @@ async def delete_plant(
     return SuccessResponse()
 
 
-@router.delete("/{plant_id}/updates/{update_id}")
-async def delete_update(
-        plant_id: uuid.UUID,
-        update_id: uuid.UUID,
-        current_user: CurrentUserDep,
-        session: SessionDep
-) -> SuccessResponse:
-    plant = session.get(Plant, plant_id)
-    if plant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Plant not found"
-        )
-
-    if plant.owner != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to access this plant"
-        )
-
-    plant_update = session.get(PlantUpdate, update_id)
-    if plant_update is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Plant Update not found"
-        )
-
-    if plant_update.plant_id != plant.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The update id does not correspond to the plant"
-        )
-
-    asset = session.get(Asset, plant_update.asset_id)
-
-    try:
-        # Delete plant
-        session.delete(plant_update)
-        session.commit()
-
-        # Delete corresponding asset
-        session.delete(asset)
-        session.commit()
-    finally:
-        try_delete_asset(minio_client, asset.asset_hash)
-
-    return SuccessResponse()
-
-
-@router.post("/{plant_id}/updates")
-async def publish_update(
-        plant_id: uuid.UUID,
-        image: UploadFile,
-        current_user: CurrentUserDep,
-        session: SessionDep
-):
-    plant = session.get(Plant, plant_id)
-    if plant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Plant not found"
-        )
-
-    if plant.owner != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to access this plant"
-        )
-
-    # TODO / IDEA: only allow one update per day (offer to replace existing in frontend)
-
-    asset = await upload_image_to_asset(
-        image=image,
-        current_user=current_user,
-        session=session
-    )
-
-    plant_update = PlantUpdate(
-        plant_id=plant_id,
-        asset_id=asset.id,
-    )
-
-    session.add(asset)
-    session.add(plant_update)
-    session.commit()
-
-    return SuccessResponse()
-
-
-def assert_plant_read_permission(
-        plant: Plant,
-        current_user: CurrentUserDep,
-        session: SessionDep
-) -> None:
-    # check plant owner
-    if plant.owner == current_user.id:
-        return
-
-    # if owner != current user check follower status
-    follow_request = session.get(Follower, (current_user.id, plant.owner))
-    if follow_request is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to access this plant"
-        )
-
-    # if current user is not an approved follower reject access
-    if follow_request.status != FollowStatus.APPROVED:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized to access this plant"
-        )
-
-
-@router.get("/{plant_id}/updates")
-async def get_plant_updates(
-        plant_id: uuid.UUID,
-        current_user: CurrentUserDep,
-        session: SessionDep,
-        offset: int = 0,
-        limit: int = Query(default=10, le=20),
-
-) -> list[PlantUpdate]:
-    # Get plant by primary key
-    plant = session.get(Plant, plant_id)
-    if plant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Plant not found"
-        )
-
-    # ensure current user can read plant
-    assert_plant_read_permission(plant, current_user, session)
-
-    query = (select(PlantUpdate)
-             .where(PlantUpdate.plant_id == plant.id)
-             .order_by(PlantUpdate.created_at.desc())
-             .offset(offset)
-             .limit(limit)
-             )
-    return session.exec(query).all()
-
-
 @router.get("/{plant_id}")
 async def get_plant_details(
         plant_id: uuid.UUID,
@@ -301,7 +187,7 @@ async def get_plant_details(
             detail="Plant not found"
         )
 
-    # ensure current user can read plant
+    # ensure the current user can read plant
     assert_plant_read_permission(plant, current_user, session)
 
     statement = select(PlantUpdate).where(PlantUpdate.plant_id == plant_id).order_by(PlantUpdate.created_at.desc()).limit(1)
