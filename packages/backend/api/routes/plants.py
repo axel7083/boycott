@@ -33,7 +33,10 @@ async def get_plants(
             session=session,
         )
 
-    statement = select(Plant).where(Plant.owner == target_user)
+    statement = (select(Plant)
+                 .where(Plant.owner == target_user)
+                 .order_by(Plant.updated_at.desc())
+                 )
 
     return session.exec(statement).all()
 

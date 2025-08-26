@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 class Plant(SQLModel, table=True):
@@ -12,6 +13,11 @@ class Plant(SQLModel, table=True):
     name: str = Field(unique=True, max_length=64)
 
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(
+        default_factory=datetime.now,
+        sa_column=Column(DateTime(), onupdate=datetime.now)
+    )
+
     dead: bool = Field(default=False)
 
     # latest asset id
