@@ -19,16 +19,12 @@ from models.tables.plant_update import PlantUpdate
 
 router = APIRouter(prefix="/plants", tags=["plants"])
 
-class PlantDetail(Plant):
-    asset_id: uuid.UUID | None
-
-
 @router.get("/")
 async def get_plants(
         current_user: CurrentUserDep,
         session: SessionDep,
         user_id: uuid.UUID | None = Query(default=None),
-) -> list[PlantDetail]:
+) -> list[Plant]:
     target_user: uuid.UUID = user_id if user_id is not None else current_user.id
     if target_user != current_user.id:
         assert_is_follower(
@@ -37,44 +33,9 @@ async def get_plants(
             session=session,
         )
 
-    # Subquery to get the latest plant update for each plant
-    latest_update_subquery = (
-        select(
-            PlantUpdate.plant_id,
-            PlantUpdate.asset_id,
-            PlantUpdate.created_at
-        )
-        .order_by(PlantUpdate.plant_id, PlantUpdate.created_at.desc())
-        .distinct(PlantUpdate.plant_id)
-        .subquery()
-    )
+    statement = select(Plant).where(Plant.owner == target_user)
 
-    # Main query to join plants with their latest updates
-    statement = (
-        select(Plant, latest_update_subquery.c.asset_id)
-        .outerjoin(
-            latest_update_subquery,
-            Plant.id == latest_update_subquery.c.plant_id
-        )
-        .where(Plant.owner == target_user)
-    )
-
-    results = session.exec(statement).all()
-
-    # Convert results to PlantDetail objects
-    plant_details = []
-    for plant, asset_id in results:
-        plant_detail = PlantDetail(
-            id=plant.id,
-            owner=plant.owner,
-            name=plant.name,
-            created_at=plant.created_at,
-            dead=plant.dead,
-            asset_id=asset_id
-        )
-        plant_details.append(plant_detail)
-
-    return plant_details
+    return session.exec(statement).all()
 
 
 @router.post("/")
@@ -86,7 +47,7 @@ async def register_plant(
         parent: Annotated[uuid.UUID | None, Form(
             title="Parent Plant ID",
         )] = None,
-) -> PlantDetail:
+) -> Plant:
     asset = await upload_image_to_asset(
         image=image,
         current_user=current_user,
@@ -96,6 +57,7 @@ async def register_plant(
     user_plant = Plant(
         owner=current_user.id,
         name=name,
+        asset_id=asset.id,
     )
 
     plant_update = PlantUpdate(
@@ -123,15 +85,9 @@ async def register_plant(
         session.add(cutting)
 
     session.commit()
+    session.refresh(user_plant)
 
-    return PlantDetail(
-        id=user_plant.id,
-        owner=user_plant.owner,
-        name=user_plant.name,
-        created_at=user_plant.created_at,
-        dead=user_plant.dead,
-        asset_id=asset.id
-    )
+    return user_plant
 
 
 @router.delete("/{plant_id}")
@@ -174,11 +130,11 @@ async def delete_plant(
 
 
 @router.get("/{plant_id}")
-async def get_plant_details(
+async def get_plant(
         plant_id: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep
-) -> PlantDetail:
+) -> Plant:
     # Get plant by primary key
     plant = session.get(Plant, plant_id)
     if plant is None:
@@ -190,14 +146,4 @@ async def get_plant_details(
     # ensure the current user can read plant
     assert_plant_read_permission(plant, current_user, session)
 
-    statement = select(PlantUpdate).where(PlantUpdate.plant_id == plant_id).order_by(PlantUpdate.created_at.desc()).limit(1)
-    plant_update: PlantUpdate = session.exec(statement).first()
-
-    return PlantDetail(
-        id=plant.id,
-        owner=plant.owner,
-        name=plant.name,
-        created_at=plant.created_at,
-        dead=plant.dead,
-        asset_id=plant_update.asset_id,
-    )
+    return plant

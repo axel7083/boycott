@@ -13,3 +13,6 @@ class Plant(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.now)
     dead: bool = Field(default=False)
+
+    # latest asset id
+    asset_id: uuid.UUID | None = Field(default=None, foreign_key="asset.id")

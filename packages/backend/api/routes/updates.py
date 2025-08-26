@@ -46,6 +46,9 @@ async def publish_update(
         session=session
     )
 
+    # update plant with new asset
+    plant.asset_id = asset.id
+
     plant_update = PlantUpdate(
         plant_id=plant_id,
         asset_id=asset.id,
@@ -53,6 +56,7 @@ async def publish_update(
 
     session.add(asset)
     session.add(plant_update)
+    session.add(plant)
     session.commit()
 
     return SuccessResponse()

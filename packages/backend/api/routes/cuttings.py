@@ -17,7 +17,7 @@ async def get_plant_cuttings(
         plant_id: uuid.UUID,
         current_user: CurrentUserDep,
         session: SessionDep,
-) -> list[PlantCutting]:
+) -> list[Plant]:
     # Get plant by id
     plant = session.get(Plant, plant_id)
     if plant is None:
@@ -32,5 +32,8 @@ async def get_plant_cuttings(
         session=session,
     )
 
-    statement = select(PlantCutting).where(PlantCutting.parent_id == plant_id)
-    return session.exec(statement).all()
+    statement = (select(PlantCutting, Plant)
+                 .join(Plant, onclause=(PlantCutting.cutting_id == Plant.id))
+                 .where(PlantCutting.parent_id == plant_id))
+    results: list[tuple[PlantCutting, Plant]] = session.exec(statement).all()
+    return [plant for (_, plant) in results]
