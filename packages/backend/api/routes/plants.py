@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, UploadFile, Form, HTTPException, Query
-from sqlmodel import select
+from sqlmodel import select, delete
 from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
@@ -115,18 +115,28 @@ async def delete_plant(
     statement = select(PlantUpdate, Asset).join(Asset, onclause=(PlantUpdate.asset_id == Asset.id)).where(PlantUpdate.plant_id == plant.id)
     items: list[tuple[PlantUpdate, Asset]] = session.exec(statement).all()
 
-    for update, asset in items:
-        try:
-            session.delete(update)
-            session.commit()
+    # Delete any cuttings that reference this plant
+    cutting__delete_statement = delete(PlantCutting).where(
+        (PlantCutting.parent_id == plant.id) | (PlantCutting.cutting_id == plant.id)
+    )
+    session.exec(cutting__delete_statement)
+    session.commit()
 
-            session.delete(asset)
-            session.commit()
-        finally:
-            try_delete_asset(minio_client, asset.asset_hash)
+    # Delete PlantUpdate Objects (to free PlantUpdate#asset_id foreign key contraint)
+    for update, _ in items:
+        session.delete(update)
+    session.commit()
 
-    # Delete all plant updates
+    # Delete Plant Object to free Plant#asset_id foreign key contraint
     session.delete(plant)
+    session.commit()
+
+    # Delete dangling assets
+    for _, asset in items:
+        # Delete corresponding object in storage
+        try_delete_asset(minio_client, asset)
+
+        session.delete(asset)
     session.commit()
 
     return SuccessResponse()

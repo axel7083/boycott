@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-boycott-credentials
+  labels:
+    app: backend
+stringData:
+  SECRET_KEY: "debug"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,6 +35,9 @@ spec:
             # minio USER & PASSWORD
             - secretRef:
                 name: minio-secret-credentials
+            # api token for JWT
+            - secretRef:
+                name: db-boycott-credentials
           env:
             - name: POSTGRES_HOST
               value: "postgresdb"

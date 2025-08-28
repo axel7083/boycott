@@ -44,12 +44,12 @@ def stream_resource(
         )
 
 
-def try_delete_asset(minio_client: Minio, asset_hash: str) -> None:
+def try_delete_asset(minio_client: Minio, asset: Asset) -> None:
     try:
         # Delete corresponding object in storage
         minio_client.remove_object(
             bucket_name=settings.IMAGES_BUCKET,
-            object_name=asset_hash,
+            object_name=str(asset.id),
         )
     except S3Error as e:
         print(f"Error deleting object: {e}")
