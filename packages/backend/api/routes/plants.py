@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, UploadFile, Form, HTTPException, Query
-from sqlmodel import select, delete
+from sqlmodel import select, delete, update
 from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
@@ -14,7 +14,6 @@ from core.minio import minio_client
 from models.sucess_response import SuccessResponse
 from models.tables.asset import Asset
 from models.tables.plant import Plant
-from models.tables.plant_cutting import PlantCutting
 from models.tables.plant_update import PlantUpdate
 
 router = APIRouter(prefix="/plants", tags=["plants"])
@@ -47,20 +46,33 @@ async def register_plant(
         session: SessionDep,
         name: Annotated[str, Form()],
         image: UploadFile,
-        parent: Annotated[uuid.UUID | None, Form(
+        parent_id: Annotated[uuid.UUID | None, Form(
             title="Parent Plant ID",
         )] = None,
 ) -> Plant:
+    # if the user provided parent_id, get the corresponding plant
+    parent: Plant | None = session.get(Plant, parent_id) if parent_id is not None else None
+
+    # ensure the current is the parent plant owner
+    if parent is not None and parent.owner != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to access parent plant"
+        )
+
+    # upload asset to minio
     asset = await upload_image_to_asset(
         image=image,
         current_user=current_user,
         session=session
     )
 
+    # create
     user_plant = Plant(
         owner=current_user.id,
         name=name,
         asset_id=asset.id,
+        parent_id=parent.id if parent is not None else None,
     )
 
     plant_update = PlantUpdate(
@@ -68,24 +80,9 @@ async def register_plant(
         asset_id=asset.id,
     )
 
-    cutting = None
-    if parent is not None:
-        assert_plant_read_permission(
-            plant=session.get(Plant, parent),
-            user=current_user,
-            session=session,
-        )
-        cutting = PlantCutting(
-            parent_id=parent,
-            cutting_id=user_plant.id,
-        )
-
     session.add(asset)
     session.add(user_plant)
     session.add(plant_update)
-
-    if cutting is not None:
-        session.add(cutting)
 
     session.commit()
     session.refresh(user_plant)
@@ -112,19 +109,18 @@ async def delete_plant(
             detail="Not authorized to access this plant"
         )
 
+    # Remove all reference to this plant from other Plant objects
+    update_statement = update(Plant).where(Plant.parent_id == plant.id).values(parent_id=None)
+    session.exec(update_statement)
+    session.commit()
+
+    # Get all PlantUpdate objects associated with this plant & corresponding assets
     statement = select(PlantUpdate, Asset).join(Asset, onclause=(PlantUpdate.asset_id == Asset.id)).where(PlantUpdate.plant_id == plant.id)
     items: list[tuple[PlantUpdate, Asset]] = session.exec(statement).all()
 
-    # Delete any cuttings that reference this plant
-    cutting__delete_statement = delete(PlantCutting).where(
-        (PlantCutting.parent_id == plant.id) | (PlantCutting.cutting_id == plant.id)
-    )
-    session.exec(cutting__delete_statement)
-    session.commit()
-
     # Delete PlantUpdate Objects (to free PlantUpdate#asset_id foreign key contraint)
-    for update, _ in items:
-        session.delete(update)
+    for plant_update, _ in items:
+        session.delete(plant_update)
     session.commit()
 
     # Delete Plant Object to free Plant#asset_id foreign key contraint

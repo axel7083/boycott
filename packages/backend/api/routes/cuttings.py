@@ -7,7 +7,6 @@ from api.dependencies.current_user import CurrentUserDep
 from api.dependencies.session import SessionDep
 from api.utils.permissions import assert_plant_read_permission
 from models.tables.plant import Plant
-from models.tables.plant_cutting import PlantCutting
 
 from sqlmodel import select
 router = APIRouter(prefix="/cuttings", tags=["cuttings"])
@@ -32,8 +31,6 @@ async def get_plant_cuttings(
         session=session,
     )
 
-    statement = (select(PlantCutting, Plant)
-                 .join(Plant, onclause=(PlantCutting.cutting_id == Plant.id))
-                 .where(PlantCutting.parent_id == plant_id))
-    results: list[tuple[PlantCutting, Plant]] = session.exec(statement).all()
-    return [plant for (_, plant) in results]
+    statement = (select(Plant)
+                 .where(Plant.parent_id == plant.id))
+    return session.exec(statement).all()
