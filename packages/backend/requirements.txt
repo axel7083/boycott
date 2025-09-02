@@ -9,3 +9,4 @@ python-multipart
 Pillow
 pydantic-settings
 uvicorn
+cron-converter

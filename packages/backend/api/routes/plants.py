@@ -45,6 +45,7 @@ async def register_plant(
         current_user: CurrentUserDep,
         session: SessionDep,
         name: Annotated[str, Form()],
+        water_schedule: Annotated[str | None, Form()],
         image: UploadFile,
         parent_id: Annotated[uuid.UUID | None, Form(
             title="Parent Plant ID",
@@ -73,6 +74,7 @@ async def register_plant(
         name=name,
         asset_id=asset.id,
         parent_id=parent.id if parent is not None else None,
+        water_schedule=water_schedule,
     )
 
     plant_update = PlantUpdate(
