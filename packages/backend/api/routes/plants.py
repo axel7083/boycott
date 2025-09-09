@@ -1,8 +1,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, UploadFile, Form, HTTPException, Query
-from sqlmodel import select, delete, update
+from fastapi import APIRouter, UploadFile, Form, HTTPException, Query, Header, Response
+from sqlalchemy import func
+from sqlmodel import select, delete, update, Session
 from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
@@ -12,25 +13,53 @@ from api.utils.minio import try_delete_asset
 from api.utils.permissions import assert_plant_read_permission, assert_is_follower
 from core.minio import minio_client
 from models.sucess_response import SuccessResponse
+from models.tables.area import Area
 from models.tables.asset import Asset
 from models.tables.plant import Plant
 from models.tables.plant_update import PlantUpdate
 
 router = APIRouter(prefix="/plants", tags=["plants"])
 
+def get_plants_etag(
+        user_id: uuid.UUID,
+        session: Session,
+) -> str:
+    """Get the latest updated_at timestamp for user's plants."""
+    statement = select(func.max(Plant.updated_at)).where(Plant.owner == user_id)
+    result = session.exec(statement).one()
+    if result is None:
+        return '0'
+    return f'{int(result.timestamp())}'
+
 @router.get("/")
 async def get_plants(
         current_user: CurrentUserDep,
         session: SessionDep,
+        response: Response,
         user_id: uuid.UUID | None = Query(default=None),
+        # etag
+        if_none_match: Annotated[str | None, Header()] = None,
 ) -> list[Plant]:
     target_user: uuid.UUID = user_id if user_id is not None else current_user.id
+
+    # Get the ETAG for the request
+    etag = get_plants_etag(current_user.id, session)
+    # Check if the client has the same ETag (If-None-Match header)
+    if if_none_match == etag:
+        raise HTTPException(status_code=status.HTTP_304_NOT_MODIFIED, headers={
+            "Cache-Control": "private",
+        })  # Not Modified
+
     if target_user != current_user.id:
         assert_is_follower(
             from_user_id=current_user.id,
             to_user_id=user_id,
             session=session,
         )
+
+    # append the ETag to the response headers
+    response.headers["ETag"] = etag
+    response.headers["Cache-Control"] = "private, must-revalidate"
 
     statement = (select(Plant)
                  .where(Plant.owner == target_user)
@@ -50,6 +79,9 @@ async def register_plant(
         parent_id: Annotated[uuid.UUID | None, Form(
             title="Parent Plant ID",
         )] = None,
+        area_id: Annotated[uuid.UUID | None, Form(
+            title="Area ID",
+        )] = None,
 ) -> Plant:
     # if the user provided parent_id, get the corresponding plant
     parent: Plant | None = session.get(Plant, parent_id) if parent_id is not None else None
@@ -59,6 +91,19 @@ async def register_plant(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized to access parent plant"
+        )
+
+    area = session.get(Area, area_id)
+    if area is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Area not found"
+        )
+
+    if area.owner != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized to use this area"
         )
 
     # upload asset to minio
@@ -75,6 +120,7 @@ async def register_plant(
         asset_id=asset.id,
         parent_id=parent.id if parent is not None else None,
         water_schedule=water_schedule,
+        area_id=area_id,
     )
 
     plant_update = PlantUpdate(

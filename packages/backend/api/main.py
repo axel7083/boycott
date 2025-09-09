@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from api.routes import users, assets, followers, followings, avatars, plants, feed, updates, cuttings
+from api.routes import users, assets, followers, followings, avatars, plants, feed, updates, cuttings, areas
 
 api_router = APIRouter()
 api_router.include_router(users.router)
@@ -13,3 +13,4 @@ api_router.include_router(plants.router)
 api_router.include_router(feed.router)
 api_router.include_router(updates.router)
 api_router.include_router(cuttings.router)
+api_router.include_router(areas.router)

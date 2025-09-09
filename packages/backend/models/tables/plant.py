@@ -20,6 +20,7 @@ class Plant(SQLModel, table=True):
         sa_column=Column(DateTime(), onupdate=datetime.now)
     )
 
+    # TODO: replace by a nullable datetime field (null => not dead)
     dead: bool = Field(default=False)
 
     # latest asset id
@@ -29,6 +30,9 @@ class Plant(SQLModel, table=True):
 
     # cron format
     water_schedule: str | None = Field(default=None, max_length=64)
+
+    # Area of the plant (E.g., Bedroom, kitchen, etc.)
+    area_id: uuid.UUID | None = Field(default=None, foreign_key="area.id")
 
     @field_validator('water_schedule')
     @classmethod
