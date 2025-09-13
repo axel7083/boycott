@@ -7,6 +7,7 @@ from sqlmodel import select, delete, update, Session
 from starlette import status
 
 from api.dependencies.current_user import CurrentUserDep
+from api.dependencies.etag_cache import ETagCacheDep
 from api.dependencies.session import SessionDep
 from api.utils.image import upload_image_to_asset
 from api.utils.minio import try_delete_asset
@@ -35,21 +36,12 @@ def get_plants_etag(
 async def get_plants(
         current_user: CurrentUserDep,
         session: SessionDep,
-        response: Response,
+        etag_cache: ETagCacheDep,
         user_id: uuid.UUID | None = Query(default=None),
-        # etag
-        if_none_match: Annotated[str | None, Header()] = None,
 ) -> list[Plant]:
     target_user: uuid.UUID = user_id if user_id is not None else current_user.id
 
-    # Get the ETAG for the request
-    etag = get_plants_etag(current_user.id, session)
-    # Check if the client has the same ETag (If-None-Match header)
-    if if_none_match == etag:
-        raise HTTPException(status_code=status.HTTP_304_NOT_MODIFIED, headers={
-            "Cache-Control": "private",
-        })  # Not Modified
-
+    # assert permissions
     if target_user != current_user.id:
         assert_is_follower(
             from_user_id=current_user.id,
@@ -57,9 +49,9 @@ async def get_plants(
             session=session,
         )
 
-    # append the ETag to the response headers
-    response.headers["ETag"] = etag
-    response.headers["Cache-Control"] = "private, must-revalidate"
+    # Get the ETAG for the request
+    etag = get_plants_etag(current_user.id, session)
+    etag_cache.verify(etag=etag)
 
     statement = (select(Plant)
                  .where(Plant.owner == target_user)

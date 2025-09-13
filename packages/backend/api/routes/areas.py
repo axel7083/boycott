@@ -1,15 +1,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, Header, Response
-from starlette import status
+from fastapi import APIRouter, Form, Query
 
 from api.dependencies.current_user import CurrentUserDep
+from api.dependencies.etag_cache import ETagCacheDep
 from api.dependencies.session import SessionDep
+from api.utils.permissions import assert_is_follower
 from models.tables.area import Area
 from sqlmodel import select, Session, func
-
-from models.tables.user import User
 
 router = APIRouter(prefix="/areas", tags=["areas"])
 
@@ -30,22 +29,22 @@ def list_area_etag(
 async def list_areas(
         current_user: CurrentUserDep,
         session: SessionDep,
-        response: Response,
-        # etag
-        if_none_match: Annotated[str | None, Header()] = None,
+        etag_cache: ETagCacheDep,
+        user_id: uuid.UUID | None = Query(default=None),
 ) -> list[Area]:
+    target_user: uuid.UUID = user_id if user_id is not None else current_user.id
+
+    # assert permissions
+    if target_user != current_user.id:
+        assert_is_follower(
+            from_user_id=current_user.id,
+            to_user_id=user_id,
+            session=session,
+        )
+
     # Get the ETAG for the request
-    etag = list_area_etag(current_user.id, session)
-
-    # Check if the client has the same ETag (If-None-Match header)
-    if if_none_match == etag:
-        raise HTTPException(status_code=status.HTTP_304_NOT_MODIFIED, headers={
-            "Cache-Control": "private",
-        })  # Not Modified
-
-    # append the ETag to the response headers
-    response.headers["ETag"] = etag
-    response.headers["Cache-Control"] = "private, must-revalidate"
+    etag = list_area_etag(target_user, session)
+    etag_cache.verify(etag=etag)
 
     statement = select(Area).where(Area.owner == current_user.id)
     results = session.exec(statement)
